@@ -45,9 +45,17 @@ joblib.dump(model, "model.pkl")
 joblib.dump(encoder, "encoder.pkl")
 
 print("Model saved successfully!")
-# # ====================================
+feature_importance = pd.DataFrame({
+    'Feature': X.columns,
+    'Importance': model.feature_importances_
+})
+
+print(feature_importance.sort_values(
+    by='Importance',
+    ascending=False
+))
+
 # # Custom Prediction
-# # ====================================
 
 # print("\n===== Maternal Health Risk Prediction =====")
 
