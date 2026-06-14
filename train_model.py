@@ -3,9 +3,10 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+from preprocess import clean_data
 
 # Load dataset
-df = pd.read_csv("dataset/maternal_health.csv")
+df = clean_data("dataset/maternal_health.csv")
 
 # Encode target
 encoder = LabelEncoder()
