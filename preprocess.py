@@ -3,15 +3,14 @@ import pandas as pd
 def clean_data(path):
     df = pd.read_csv(path)
 
-    # 1. Check missing values
-    df = df.dropna()
+    # Standardize column names
+    df.columns = df.columns.str.strip().str.replace(" ", "_")
 
-    # 2. Remove duplicates
-    df = df.drop_duplicates()
+    # Drop rows where target is missing
+    df = df.dropna(subset=["Risk_Level"])
 
-    # 3. Fix data types
-    df["Age"] = df["Age"].astype(int)
-    df["SystolicBP"] = df["SystolicBP"].astype(int)
-    df["DiastolicBP"] = df["DiastolicBP"].astype(int)
+    # Fill numeric missing values with median
+    for col in df.select_dtypes(include=["float64", "int64"]).columns:
+        df[col] = df[col].fillna(df[col].median())
 
     return df
