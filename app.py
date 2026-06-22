@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import joblib
+import numpy as np
+import shap
 
 st.set_page_config(
     page_title="Maternal Health Risk Triage System",
@@ -9,83 +11,71 @@ st.set_page_config(
     layout="centered"
 )
 
-# Load dataset
-df = pd.read_csv("dataset/maternal_health.csv")
-
-model = joblib.load("model.pkl")
-encoder = joblib.load("encoder.pkl")
-# Streamlit UI
-st.title("Maternal Health Risk Triage System")
-
-st.warning(
-    "⚠️ This application is for educational purposes only and "
-    "should not be used as a substitute for professional medical advice."
+# SIDEBAR
+page = st.sidebar.selectbox(
+    "Navigation",
+    ["Prediction", "Analytics"]
 )
 
-st.markdown("""
-This application predicts maternal health risk levels using Machine Learning.
+# Load Model
+model = joblib.load("model.pkl")
+encoder = joblib.load("encoder.pkl")
+explainer = shap.TreeExplainer(model)
 
-### Risk Categories
-- 🟢 Low Risk
-- 🟡 Medium Risk
-- 🔴 High Risk
-""")
+# ================================
+# PREDICTION PAGE
+# ================================
+if page == "Prediction":
 
-st.divider()
+    st.title("🤰 Maternal Health Risk Prediction System")
+    st.markdown("AI-powered clinical decision support system")
 
-st.write("Enter patient health details below:")
+    st.warning("⚠ This is NOT a medical diagnosis tool.")
 
-age = st.number_input("Age", min_value=18, max_value=50,value=25)
-systolic = st.number_input("Systolic Blood Pressure", min_value=50, max_value=130,value=80)
-diastolic = st.number_input("Diastolic Blood Pressure",min_value=50,max_value=130,value=80 )
-bs = st.number_input("Blood Sugar Level",min_value=3.0, max_value=30.0,value=6.0)
-temp = st.number_input("Body Temperature",min_value=95.0,max_value=105.0,value=98.0)
-heart_rate = st.number_input("Heart Rate",min_value=40,max_value=180,value=80)
-
-if st.button("Predict Risk"):
-    
-    if diastolic >= systolic:
-        st.error(
-            "Diastolic Blood Pressure must be lower than Systolic Blood Pressure."
-        )
-        st.stop()
-
-    Patient_data = pd.DataFrame([{
-        'Age': age,
-        'SystolicBP': systolic,
-        'DiastolicBP': diastolic,
-        'BS': bs,
-        'BodyTemp': temp,
-        'HeartRate': heart_rate
-    }])
-
-    prediction = model.predict(Patient_data)
-    probabilities = model.predict_proba(Patient_data)
-    confidence = max(probabilities[0]) * 100
-    risk = encoder.inverse_transform(prediction)[0]
     st.divider()
 
-    st.subheader("Prediction Result")
+    st.header("Patient Information")
 
-    st.info(f"Prediction Confidence: {confidence:.2f}%")
+    col1, col2 = st.columns(2)
 
-    if risk == "high risk":
-        st.error("🔴 High Risk Pregnancy")
-        st.write(
-            "Immediate medical consultation and continuous monitoring are recommended."
-        )
+    with col1:
+        age = st.number_input("Age", 10, 60, 25)
+        systolic = st.number_input("Systolic BP", 50, 200, 120)
+        diastolic = st.number_input("Diastolic BP", 30, 150, 80)
+        bs = st.number_input("Blood Sugar", 0.0, 30.0, 7.0)
+        bmi = st.number_input("BMI", 10.0, 50.0, 22.0)
 
-    elif risk == "mid risk":
-        st.warning("🟡 Medium Risk Pregnancy")
-        st.write(
-            "Regular monitoring and follow-up with healthcare professionals are advised."
-        )
+    with col2:
+        body_temp = st.number_input("Body Temperature", 90.0, 110.0, 98.0)
+        prev_comp = st.number_input("Previous Complications", 0, 1, 0)
+        pre_dm = st.number_input("Preexisting Diabetes", 0, 1, 0)
+        gest_dm = st.number_input("Gestational Diabetes", 0, 1, 0)
+        mental = st.number_input("Mental Health Issues", 0, 1, 0)
+        heart_rate = st.number_input("Heart Rate", 30, 180, 80)
 
-    else:
-        st.success("🟢 Low Risk Pregnancy")
-        st.write(
-            "Continue routine prenatal checkups and maintain a healthy lifestyle."
-        )
+    st.divider()
 
-    st.subheader("Patient Details")
-    st.dataframe(Patient_data)
+    # =========================
+    # PREDICT BUTTON
+    # =========================
+    if st.button("🔍 Predict Risk"):
+
+        input_data = pd.DataFrame([{
+            "Age": age,
+            "Systolic_BP": systolic,
+            "Diastolic": diastolic,
+            "BS": bs,
+            "Body_Temp": body_temp,
+            "BMI": bmi,
+            "Previous_Complications": prev_comp,
+            "Preexisting_Diabetes": pre_dm,
+            "Gestational_Diabetes": gest_dm,
+            "Mental_Health": mental,
+            "Heart_Rate": heart_rate
+        }])
+
+        pred = model.predict(input_data)
+        proba = model.predict_proba(input_data)
+
+        risk = encoder.inverse_transform(pred)[0]
+        confidence = np.max(proba) * 100
