@@ -4,12 +4,19 @@ import matplotlib.pyplot as plt
 import joblib
 import numpy as np
 import shap
+from history_manager import save_prediction
 
 st.set_page_config(
     page_title="Maternal Health Risk Triage System",
     page_icon="🤰",
     layout="centered"
 )
+# SESSION STATE INIT
+if "prediction_done" not in st.session_state:
+    st.session_state.prediction_done = False
+
+if "result_data" not in st.session_state:
+    st.session_state.result_data = {}
 
 # SIDEBAR
 page = st.sidebar.selectbox(
@@ -79,3 +86,85 @@ if page == "Prediction":
 
         risk = encoder.inverse_transform(pred)[0]
         confidence = np.max(proba) * 100
+
+        # Explainability
+        reasons = []
+        
+        if prev_comp ==1:
+            reasons.append("Previous complication exists")
+        if bs > 8:
+            reasons.append("High blood sugar")
+        if bmi > 30:
+            reasons.append("High BMI")
+        if systolic > 140:
+            reasons.append("High BP")
+        if pre_dm == 1:
+            reasons.append("Preexisting diabetes")
+        if gest_dm == 1:
+            reasons.append("Gestational diabetes")
+        if mental == 1:
+            reasons.append("Mental health issue")
+
+        if not reasons:
+            reasons = ["No major risk factors"]
+
+        save_prediction(age, risk, confidence)
+
+        # STORE IN SESSION
+        st.session_state.prediction_done = True
+        st.session_state.result_data = {
+            "age": age,
+            "risk": risk,
+            "confidence": confidence,
+            "reasons": reasons,
+            "patient_data": {
+                "Age": age,
+                "Systolic BP": systolic,
+                "Diastolic BP": diastolic,
+                "Blood Sugar": bs,
+                "BMI": bmi,
+                "Body Temperature": body_temp,
+                "Heart Rate": heart_rate
+            }
+        }
+
+        st.success("Prediction Completed!")
+
+    # =========================
+    # SHOW RESULTS
+    # =========================
+    if st.session_state.prediction_done:
+
+        data = st.session_state.result_data
+
+        st.subheader("🧠 Risk Result")
+
+        if data["risk"] == "High":
+            st.error("🔴 HIGH RISK")
+        elif data["risk"] == "Medium":
+            st.warning("🟡 MEDIUM RISK")
+        else:
+            st.success("🟢 LOW RISK")
+
+        st.subheader("📊 Confidence")
+        st.progress(int(data["confidence"]))
+        st.write(f"{data['confidence']:.2f}%")
+
+        st.subheader("🧾 Why this prediction?")
+        for r in data["reasons"]:
+            st.write("•", r)
+
+        st.subheader("📈 Feature Importance")
+
+        feat_df = pd.DataFrame({
+            "Feature": model.feature_names_in_,
+            "Importance": model.feature_importances_
+        }).sort_values("Importance", ascending=True)
+
+        fig, ax = plt.subplots(figsize=(8, 5))
+
+        ax.barh(feat_df["Feature"], feat_df["Importance"])
+        ax.set_title("Model Feature Importance")
+        ax.set_xlabel("Importance Score")
+
+        st.pyplot(fig)
