@@ -5,6 +5,7 @@ import joblib
 import numpy as np
 import shap
 from history_manager import save_prediction
+from analytics import analytics_page
 
 st.set_page_config(
     page_title="Maternal Health Risk Triage System",
@@ -168,3 +169,6 @@ if page == "Prediction":
         ax.set_xlabel("Importance Score")
 
         st.pyplot(fig)
+        
+elif page == "Analytics":
+    analytics_page()
